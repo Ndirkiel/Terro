@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>N-kiel Course Store</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+:root {
+  --accent: #2b6cb0;
+  --muted: #666;
+  --card: #fff;
+  --bg: #f6f8fb;
+  --danger: #e53e3e;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  background: var(--bg);
+  color: #222;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 16px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.logo {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg,var(--accent),#6bb6ff);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+input, select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+button {
+  background: var(--accent);
+  color: #fff;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid #dbeafe;
+}
+
+main {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 18px;
+  align-items: start;
+}
+
+.course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  background: var(--card);
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+}
+
+.course-image img {
+  width: 100%;
+  height: 160px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #ddd;
+}
+
+.course-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.course-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.course-instructor {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.price {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.cart {
+  background: var(--card);
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.cart-item {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.cart-thumb img {
+  width: 56px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #ddd;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+.ghost {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* SweetAlert2 custom styles */
+.swal-wide {
+  width: 650px !important;
+}
+.swal2-input {
+  margin: 5px 0 !important;
+}
+
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+  .cart { margin-top: 20px; }
+}
+</style>
+</head>
+<body>
+<div id="app" class="container">
+  <header>
+    <div class="brand">
+      <div class="logo">NK</div>
+      <div>
+        <div style="font-weight:700">N-kiel Course Store</div>
+        <div style="font-size:12px;color:var(--muted)">Language Course Demo</div>
+      </div>
+    </div>
+    <div class="controls">
+      <input type="search" v-model="query" placeholder="Search…" />
+      <select v-model="selectedCategory">
+        <option value="">All categories</option>
+        <option v-for="c in categories" :key="c">{{ c }}</option>
+      </select>
+      <select v-model="selectedSort">
+        <option value="">Sort by</option>
+        <option value="titleAsc">Title (A–Z)</option>
+        <option value="titleDesc">Title (Z–A)</option>
+        <option value="priceAsc">Price (Low → High)</option>
+        <option value="priceDesc">Price (High → Low)</option>
+      </select>
+      <button @click="addCourse">+ Add Course</button>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div style="margin-bottom:10px;font-weight:600">{{ filteredCourses.length }} courses found</div>
+      <div class="course-grid">
+        <div class="card" v-for="course in filteredCourses" :key="course._id">
+          <div class="course-image">
+            <img :src="course.cover" :alt="course.title" @error="handleImageError($event)" />
+          </div>
+          <div class="course-info">
+            <div class="course-title">{{ course.title }}</div>
+            <div class="course-instructor">by {{ course.instructor }}</div>
+            <div style="font-size:13px;color:var(--muted)">
+              🌍 {{ course.location }} | 📚 {{ course.category }}
+            </div>
+            <div style="font-size:13px;color:#f39c12">
+              ⭐ {{ course.rating.toFixed(1) }}
+            </div>
+            <div class="price">{{ formatPrice(course.price) }}</div>
+            <div>Spaces: {{ course.spaces }}</div>
+            <button style="margin-top:6px" @click="addToCart(course)" :disabled="course.spaces === 0">Add to Cart</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="cart">
+      <h3>Cart</h3>
+      <div v-if="cartItems.length === 0" style="color: var(--muted)">Your cart is empty</div>
+      <div v-for="item in cartItems" :key="item.course._id" class="cart-item">
+        <div class="cart-thumb"><img :src="item.course.cover" /></div>
+        <div style="flex:1">
+          <div style="font-weight:600">{{ item.course.title }}</div>
+          <div style="font-size:13px;color:var(--muted)">{{ item.course.instructor }}</div>
+          <div>Qty: {{ item.qty }} × {{ formatPrice(item.course.price) }}</div>
+        </div>
+        <button style="background:var(--danger);padding:4px 8px" @click="removeFromCart(item.course._id)">X</button>
+      </div>
+      <div class="total-row">
+        <div>Total</div>
+        <div>{{ formatPrice(cartTotal) }}</div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <button :disabled="cartItems.length===0" @click="checkout">Checkout</button>
+        <button class="ghost" :disabled="cartItems.length===0" @click="clearCart">Clear</button>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+const { createApp, reactive, computed, ref } = Vue;
+
+createApp({
+  setup() {
+    const courses = reactive([]);
+    const query = ref("");
+    const selectedCategory = ref("");
+    const selectedSort = ref("");
+    const cart = reactive([]);
+
+    const categories = computed(() => Array.from(new Set(courses.map(c => c.category))).sort());
+
+    const fetchCourses = async () => {
+      try {
+        const res = await fetch("/api/courses");
+        const data = await res.json();
+        courses.splice(0, courses.length, ...data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchCourses();
+
+    const filteredCourses = computed(() => {
+      let filtered = [...courses];
+      if (query.value) {
+        const q = query.value.toLowerCase();
+        filtered = filtered.filter(c => c.title.toLowerCase().includes(q) || c.instructor.toLowerCase().includes(q));
+      }
+      if (selectedCategory.value) filtered = filtered.filter(c => c.category === selectedCategory.value);
+      switch (selectedSort.value) {
+        case "titleAsc": filtered.sort((a,b)=>a.title.localeCompare(b.title)); break;
+        case "titleDesc": filtered.sort((a,b)=>b.title.localeCompare(a.title)); break;
+        case "priceAsc": filtered.sort((a,b)=>a.price-b.price); break;
+        case "priceDesc": filtered.sort((a,b)=>b.price-a.price); break;
+      }
+      return filtered;
+    });
+
+    const cartItems = computed(() => cart.map(id => {
+      const course = courses.find(c => c._id === id);
+      if (!course) return null;
+      const qty = cart.filter(i => i===id).length;
+      return { course, qty };
+    }).filter(Boolean));
+
+    const cartTotal = computed(() => cartItems.value.reduce((t,i)=>t+i.course.price*i.qty,0));
+    const formatPrice = p=>"$"+p.toFixed(2);
+
+    const addToCart = course => {
+      if(course.spaces <= 0) return Swal.fire("Sold Out","No spaces left","error");
+      cart.push(course._id);
+      course.spaces--;
+    };
+    const removeFromCart = id => {
+      const i = cart.indexOf(id);
+      if(i !== -1){
+        cart.splice(i, 1);
+        const c = courses.find(c => c._id === id);
+        if(c) c.spaces++;
+      }
+    };
+    const clearCart = () => {
+      cartItems.value.forEach(i => {
+        const c = courses.find(c => c._id === i.course._id);
+        if(c) c.spaces += i.qty;
+      });
+      cart.splice(0);
+    };
+    const handleImageError = e => e.target.src="https://via.placeholder.com/600x400?text=No+Image";
+
+    async function addCourse() {
+      const { value: f } = await Swal.fire({
+        title:"Add Course",
+        html:`<input id="title" placeholder="Title" class="swal2-input">
+              <input id="instructor" placeholder="Instructor" class="swal2-input">
+              <input id="category" placeholder="Category" class="swal2-input">
+              <input id="location" placeholder="Location" class="swal2-input">
+              <input id="price" type="number" placeholder="Price" class="swal2-input">
+              <input id="rating" type="number" placeholder="Rating" class="swal2-input">
+              <input id="spaces" type="number" placeholder="Spaces" class="swal2-input">`,
+        focusConfirm:false,
+        preConfirm:() => ({
+          title:document.getElementById("title").value,
+          instructor:document.getElementById("instructor").value,
+          category:document.getElementById("category").value,
+          location:document.getElementById("location").value,
+          price:parseFloat(document.getElementById("price").value),
+          rating:parseFloat(document.getElementById("rating").value),
+          spaces:parseInt(document.getElementById("spaces").value),
+          cover:"https://via.placeholder.com/400x200"
+        })
+      });
+      if(f && f.title){
+        const res = await fetch("/api/courses",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)});
+        const newCourse = await res.json();
+        courses.push(newCourse);
+        Swal.fire("Added!",`${newCourse.title} added.`,"success");
+      }
+    }
+
+    async function checkout() {
+      if(cartItems.value.length === 0) return;
+
+      const { value: form } = await Swal.fire({
+        title: "Checkout",
+        html: `
+          <input id="name" placeholder="Full Name*" class="swal2-input" required>
+          <input id="email" type="email" placeholder="Email*" class="swal2-input" required>
+          <input id="phone" type="tel" placeholder="Phone*" class="swal2-input" required>
+          <input id="address" placeholder="Address*" class="swal2-input" required>
+          <input id="city" placeholder="City*" class="swal2-input" required>
+          <input id="state" placeholder="State/Province*" class="swal2-input" required>
+          <input id="zip" placeholder="ZIP / Postal Code*" class="swal2-input" required>
+          <input id="country" placeholder="Country*" class="swal2-input" required>
+          <input id="notes" placeholder="Additional Notes" class="swal2-input">
+          <input id="coupon" placeholder="Coupon Code" class="swal2-input">
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: "Place Order",
+        cancelButtonText: "Cancel",
+        customClass: { popup: 'swal-wide' },
+        preConfirm: () => {
+          const requiredFields = ["name","email","phone","address","city","state","zip","country"];
+          for (let id of requiredFields) {
+            const val = document.getElementById(id).value.trim();
+            if (!val) {
+              Swal.showValidationMessage(`Please enter ${id}`);
+              return false;
+            }
+          }
+          return {
+            name: document.getElementById("name").value.trim(),
+            email: document.getElementById("email").value.trim(),
+            phone: document.getElementById("phone").value.trim(),
+            address: document.getElementById("address").value.trim(),
+            city: document.getElementById("city").value.trim(),
+            state: document.getElementById("state").value.trim(),
+            zip: document.getElementById("zip").value.trim(),
+            country: document.getElementById("country").value.trim(),
+            notes: document.getElementById("notes").value.trim(),
+            coupon: document.getElementById("coupon").value.trim()
+          };
+        }
+      });
+
+      if (form) {
+        await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customer: form,
+            items: cartItems.value.map(i => ({ courseId: i.course._id, qty: i.qty })),
+            total: cartTotal.value
+          })
+        });
+        Swal.fire("✅ Order Complete", `Thanks ${form.name}. Total: ${formatPrice(cartTotal.value)}`, "success");
+        await fetchCourses();
+        clearCart();
+      }
+    }
+
+    return { courses, query, selectedCategory, selectedSort, categories, filteredCourses, cart, cartItems, cartTotal, formatPrice, addToCart, removeFromCart, clearCart, addCourse, handleImageError, checkout };
+  }
+}).mount("#app");
+</script>
+</body>
+</html>
