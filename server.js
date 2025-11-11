@@ -5,7 +5,7 @@ const bodyParser = require("body-parser");
 const path = require("path");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // ----------------------
 // Middlewares
@@ -13,13 +13,6 @@ const PORT = 3000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public"));
-
-// ----------------------
-// MongoDB Connection
-// ----------------------
-mongoose.connect("mongodb://127.0.0.1:27017/courseStore")
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch(err => console.error("❌ MongoDB connection error:", err));
 
 // ----------------------
 // Schemas & Models
@@ -36,7 +29,6 @@ const courseSchema = new mongoose.Schema({
 });
 const Course = mongoose.model("Course", courseSchema);
 
-// Updated Order schema to include full customer info
 const orderSchema = new mongoose.Schema({
   customer: {
     name: { type: String, required: true },
@@ -64,7 +56,7 @@ const orderSchema = new mongoose.Schema({
 const Order = mongoose.model("Order", orderSchema);
 
 // ----------------------
-// Seed Initial Courses (only if DB is empty)
+// Seed Initial Courses
 // ----------------------
 const initialCourses = [
   {
@@ -100,20 +92,23 @@ const initialCourses = [
 ];
 
 async function preloadCourses() {
-  const count = await Course.countDocuments();
-  if (count === 0) {
-    console.log("📥 Seeding sample courses...");
-    await Course.insertMany(initialCourses);
-    console.log("✅ Courses added.");
+  try {
+    const count = await Course.countDocuments();
+    if (count === 0) {
+      console.log("📥 Seeding sample courses...");
+      await Course.insertMany(initialCourses);
+      console.log("✅ Courses added.");
+    } else {
+      console.log(`ℹ️ Courses already exist (${count}). Skipping seed.`);
+    }
+  } catch (err) {
+    console.warn("⚠️ Cannot preload courses (maybe DB not connected yet):", err.message);
   }
 }
-preloadCourses();
 
 // ----------------------
 // API Routes
 // ----------------------
-
-// Get all courses
 app.get("/api/courses", async (req, res) => {
   try {
     const courses = await Course.find();
@@ -123,7 +118,6 @@ app.get("/api/courses", async (req, res) => {
   }
 });
 
-// Add a new course
 app.post("/api/courses", async (req, res) => {
   try {
     const course = new Course(req.body);
@@ -134,7 +128,6 @@ app.post("/api/courses", async (req, res) => {
   }
 });
 
-// Create a new order
 app.post("/api/orders", async (req, res) => {
   try {
     const { customer, items, total } = req.body;
@@ -151,7 +144,6 @@ app.post("/api/orders", async (req, res) => {
   }
 });
 
-// Get all orders
 app.get("/api/orders", async (req, res) => {
   try {
     const orders = await Order.find();
@@ -169,6 +161,43 @@ app.get("/", (req, res) => {
 });
 
 // ----------------------
+// MongoDB Connection with Retry
+// ----------------------
+const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/courseStore";
+
+async function waitForMongo(retries = 10, delay = 2000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await mongoose.connect(MONGO_URI);
+      console.log("✅ MongoDB connected");
+      return;
+    } catch (err) {
+      console.log(`MongoDB not ready, retrying in ${delay}ms... (${i + 1}/${retries})`);
+      await new Promise(res => setTimeout(res, delay));
+    }
+  }
+  throw new Error("MongoDB failed to connect after multiple attempts");
+}
+
+// ----------------------
 // Start Server
 // ----------------------
-app.listen(PORT, () => console.log(`✅ Server running: http://localhost:${PORT}`));
+async function startServer() {
+  try {
+    await waitForMongo();
+
+    // Preload courses only if not running in CI without DB
+    if (!process.env.CI) {
+      await preloadCourses();
+    } else {
+      console.log("⚠️ Skipping DB seed in CI environment");
+    }
+
+    app.listen(PORT, () => console.log(`✅ Server running: http://localhost:${PORT}`));
+  } catch (err) {
+    console.error("❌ MongoDB connection error:", err.message);
+    process.exit(1);
+  }
+}
+
+startServer();
