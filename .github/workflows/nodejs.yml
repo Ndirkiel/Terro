@@ -15,8 +15,7 @@ jobs:
         image: mongo:6.0
         ports:
           - 27017:27017
-        # remove options --bind_ip_all
-
+       
     steps:
       - uses: actions/checkout@v3
 

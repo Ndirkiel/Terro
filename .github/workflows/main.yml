@@ -1,4 +1,4 @@
-name: Node.js & Vue Build
+name: Node.js & Vue CI with MongoDB
 
 on:
   push:
@@ -10,22 +10,32 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        
+
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 20
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
 
-    - name: Install backend dependencies
-      run: npm install
+      - name: Install backend dependencies
+        run: npm install
 
-    - name: Build frontend (Vue)
-      run: |
-        cd public
-        npm install
-        npm run build || echo "No build script, skipping"
+      - name: Build frontend (Vue)
+        run: |
+          cd public
+          npm install
+          npm run build || echo "No build script, skipping"
 
-    - name: Run backend server check
-      run: node server.js
+      - name: Set MongoDB URI
+        run: echo "MONGO_URI=mongodb://localhost:27017/courseStore" >> $GITHUB_ENV
+
+      - name: Start backend server
+        run: node server.js
